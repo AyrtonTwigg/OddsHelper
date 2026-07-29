@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#121212">
+    <title>Odds & Arbitrage Analyzer</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #888;
+            --green: #4CAF50;
+            --red: #F44336;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 1rem; /* Reduced for better mobile spacing */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        /* Target Payout Container */
+        .target-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .target-container input {
+            width: 100%;
+            max-width: 300px; /* Better mobile scaling */
+            border-color: #4CAF50;
+        }
+
+        .columns {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .col {
+            flex: 1 1 250px;
+            max-width: 350px; /* Prevents an odd 3rd box from stretching entirely */
+            background-color: var(--panel-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        .btn-controls {
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap; /* Let buttons wrap on very small screens */
+        }
+
+        .btn-controls button {
+            background-color: transparent;
+            color: var(--text-main);
+            border: 1px solid #444;
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            flex: 1 1 150px;
+            max-width: 200px;
+        }
+
+        .btn-controls button:hover, .btn-controls button:active {
+            background-color: #2a2a2a;
+            border-color: #666;
+        }
+
+        #btnAddOutcome {
+            background-color: rgba(76, 175, 80, 0.1);
+            border-color: rgba(76, 175, 80, 0.4);
+            color: #4CAF50;
+            font-weight: 600;
+        }
+        
+        #btnAddOutcome:hover, #btnAddOutcome:active {
+            background-color: rgba(76, 175, 80, 0.2);
+        }
+
+        /* Smaller, subtle Clear button */
+        #btnClear {
+            flex: 0 0 auto;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.8rem;
+            opacity: 0.8;
+            transition: all 0.2s ease;
+        }
+
+        #btnClear:hover {
+            opacity: 1;
+        }
+
+        /* Confirmation state style */
+        #btnClear.confirm-clear {
+            background-color: var(--red);
+            color: #fff;
+            border-color: var(--red);
+            font-weight: bold;
+            opacity: 1;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 14px 10px;
+            font-size: 1.25rem;
+            text-align: center;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--green);
+            background: #242424;
+        }
+
+        .stats {
+            text-align: center;
+            font-size: 1.25rem;
+            min-height: 4.5rem;
+            line-height: 1.4;
+        }
+        
+        .stats-pct {
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        .bet-amount {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            text-align: center;
+            min-height: 3rem;
+        }
+
+        .bet-amount strong {
+            color: var(--text-main);
+            font-size: 1.3rem;
+        }
+
+        /* Minimalist Number Line */
+        .number-line-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            margin-top: 1rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .line-segment {
+            height: 6px;
+            flex: 1;
+        }
+
+        .red-line {
+            background: linear-gradient(to right, transparent, var(--red));
+            border-radius: 4px 0 0 4px;
+        }
+
+        .green-line {
+            background: linear-gradient(to left, transparent, var(--green));
+            border-radius: 0 4px 4px 0;
+        }
+
+        .marker {
+            background: var(--text-main);
+            color: var(--bg-color);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin: 0 8px;
+        }
+
+        /* Summary Section */
+        .summary-panel {
+            background-color: var(--panel-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .summary-title {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-subtext {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .arb { color: var(--green); }
+        .edge { color: var(--red); }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div class="target-container">
+        <input type="number" id="inputTarget" placeholder="Target Payout ($)" autocomplete="off" min="0" step="1" inputmode="decimal">
+    </div>
+
+    <div class="btn-controls">
+        <button id="btnAddOutcome">+ Add Outcome</button>
+        <button id="btnRemoveOutcome">- Remove Outcome</button>
+        <button id="btnClear">Clear</button>
+    </div>
+
+    <!-- Dynamic Columns Container -->
+    <div class="columns" id="columnsContainer"></div>
+
+    <!-- Arbitrage / Edge Summary -->
+    <div class="summary-panel" id="summaryPanel">
+        <div class="summary-title" id="summaryTitle">Comparison</div>
+        <div class="summary-value" id="summaryValue">--</div>
+        <div class="summary-subtext" id="summarySubtext"></div>
+    </div>
+</div>
+
+<script>
+    const inputTarget = document.getElementById('inputTarget');
+    const columnsContainer = document.getElementById('columnsContainer');
+    const summaryPanel = document.getElementById('summaryPanel');
+    const summaryTitle = document.getElementById('summaryTitle');
+    const summaryValue = document.getElementById('summaryValue');
+    const summarySubtext = document.getElementById('summarySubtext');
+
+    let outcomes = [];
+
+    // Initialize with 2 outcomes
+    function init() {
+        addOutcomeDOM();
+        addOutcomeDOM();
+    }
+
+    function addOutcomeDOM() {
+        const index = outcomes.length;
+        const col = document.createElement('div');
+        col.className = 'col';
+        col.innerHTML = `
+            <h3 contenteditable="true" spellcheck="false" title="Click to rename" style="margin-top:0; color: var(--text-muted); border-bottom: 1px dashed #555; cursor: text; outline: none; padding-bottom: 2px;">Outcome ${index + 1}</h3>
+            <input type="text" class="outcome-input" placeholder="+150, 2.5x, or 40%" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false">
+            <div class="stats"></div>
+            <div class="bet-amount"></div>
+        `;
+        columnsContainer.appendChild(col);
+        
+        const input = col.querySelector('.outcome-input');
+        input.addEventListener('input', updateUI);
+        
+        outcomes.push({
+            col: col,
+            input: input,
+            stats: col.querySelector('.stats'),
+            bet: col.querySelector('.bet-amount')
+        });
+    }
+
+    document.getElementById('btnAddOutcome').addEventListener('click', () => {
+        addOutcomeDOM();
+        updateUI();
+    });
+
+    document.getElementById('btnRemoveOutcome').addEventListener('click', () => {
+        if (outcomes.length > 2) {
+            const last = outcomes.pop();
+            columnsContainer.removeChild(last.col);
+            updateUI();
+        }
+    });
+
+    const btnClear = document.getElementById('btnClear');
+    let clearTimer = null;
+
+    btnClear.addEventListener('click', () => {
+        // Second click: perform the clear action
+        if (btnClear.classList.contains('confirm-clear')) {
+            clearTimeout(clearTimer);
+            btnClear.classList.remove('confirm-clear');
+            btnClear.textContent = 'Clear';
+
+            inputTarget.value = '';
+            outcomes.forEach(o => o.input.value = '');
+            updateUI();
+        } else {
+            // First click: prompt for confirmation
+            btnClear.classList.add('confirm-clear');
+            btnClear.textContent = 'Confirm?';
+
+            // Reset back to normal if not clicked again within 3 seconds
+            clearTimer = setTimeout(() => {
+                btnClear.classList.remove('confirm-clear');
+                btnClear.textContent = 'Clear';
+            }, 3000);
+        }
+    });
+
+    // Utility: Parse Input to get Multiplier and identify input type
+    function parseToMultiplier(val) {
+        val = val.trim().toLowerCase();
+        if (!val) return null;
+
+        if (val.endsWith('x')) {
+            let m = parseFloat(val.replace('x', ''));
+            return (m > 1) ? { mult: m, type: 'multiplier' } : null;
+        }
+        
+        if (val.endsWith('%')) {
+            let p = parseFloat(val.replace('%', ''));
+            return (p > 0 && p < 100) ? { mult: (100 / p), type: 'percent' } : null;
+        }
+
+        let american = parseInt(val);
+        if (isNaN(american)) return null;
+
+        if (american > 0) return { mult: (american / 100) + 1, type: 'american' };
+        if (american < 0) return { mult: (100 / Math.abs(american)) + 1, type: 'american' };
+        
+        return null;
+    }
+
+    // Utility: Convert Multiplier to American formatting
+    function formatAmerican(mult) {
+        let am;
+        if (mult >= 2.0) am = (mult - 1) * 100;
+        else am = -100 / (mult - 1);
+        return am > 0 ? `+${Math.round(am)}` : `${Math.round(am)}`;
+    }
+
+    function renderSide(statsElem, mult, inputType, prefix = "") {
+        let am = formatAmerican(mult);
+        let pct = (1 / mult) * 100;
+        
+        let amText = `${prefix}${am}`;
+        let multText = `${mult.toFixed(3)}x`;
+        let pctText = `${pct.toFixed(2)}%`;
+
+        function buildRow(text, typeMatch) {
+            if (inputType === typeMatch) {
+                return `<div style="margin: 0.5rem 0; font-size: 1.25rem; font-weight: bold; color: var(--text-main);">${text}</div>`;
+            } else {
+                // FIXED LOGIC: True Probability (%) must be HIGHER than implied -> Green on Right.
+                // True Multiplier (x) & American Odds must be LOWER than implied -> Green on Left.
+                let leftColor = typeMatch === 'percent' ? 'var(--red)' : 'var(--green)';
+                let rightColor = typeMatch === 'percent' ? 'var(--green)' : 'var(--red)';
+
+                return `
+                <div style="display: flex; align-items: center; width: 100%; margin: 0.75rem 0; box-sizing: border-box; padding: 0 10px;">
+                    <div style="height: 6px; flex: 1; background: linear-gradient(to right, transparent, ${leftColor}); border-radius: 4px 0 0 4px; min-width: 20px;"></div>
+                    <div style="background: var(--text-main); color: var(--bg-color); padding: 4px 12px; border-radius: 12px; font-size: 0.9rem; font-weight: bold; margin: 0 12px; white-space: nowrap;">${text}</div>
+                    <div style="height: 6px; flex: 1; background: linear-gradient(to left, transparent, ${rightColor}); border-radius: 0 4px 4px 0; min-width: 20px;"></div>
+                </div>`;
+            }
+        }
+
+        statsElem.innerHTML = `
+            ${buildRow(amText, 'american')}
+            ${buildRow(multText, 'multiplier')}
+            ${buildRow(pctText, 'percent')}
+        `;
+    }
+
+    function updateUI() {
+        let target = parseFloat(inputTarget.value);
+        let parsed = outcomes.map(o => parseToMultiplier(o.input.value));
+        let validMultipliers = parsed.map(p => p ? p.mult : null);
+        let validCount = validMultipliers.filter(m => m !== null).length;
+        
+        // Reset visuals
+        outcomes.forEach(o => { o.stats.innerHTML = ''; o.bet.innerHTML = ''; });
+        summaryPanel.style.opacity = 0;
+        summarySubtext.innerHTML = '';
+
+        if (validCount === 0) return;
+
+        let finalMultipliers = [...validMultipliers];
+        let isRealComparison = (validCount === outcomes.length);
+
+        // If exactly ONE outcome is missing, infer it (Fair Market)
+        if (validCount === outcomes.length - 1) {
+            let knownProbSum = validMultipliers.reduce((sum, m) => sum + (m ? 1/m : 0), 0);
+            
+            // Only infer if the known probability leaves room (< 100%)
+            if (knownProbSum < 1) {
+                let missingProb = 1 - knownProbSum;
+                let missingMult = 1 / missingProb;
+                let missingIndex = validMultipliers.indexOf(null);
+                
+                finalMultipliers[missingIndex] = missingMult;
+                renderSide(outcomes[missingIndex].stats, missingMult, "none", "Fair: ");
+            }
+        }
+
+        // Render known inputs
+        outcomes.forEach((o, i) => {
+            if (validMultipliers[i]) {
+                renderSide(o.stats, validMultipliers[i], parsed[i].type, "");
+            }
+        });
+
+        calculateFinancials(finalMultipliers, isRealComparison, target);
+    }
+
+    function calculateFinancials(multipliers, isRealComparison, target) {
+        let probSum = multipliers.reduce((sum, m) => sum + (m ? 1/m : 0), 0);
+        let allValid = multipliers.every(m => m !== null);
+
+        // Render Top Summary Panel (Arb/Edge)
+        if (allValid) {
+            summaryPanel.style.opacity = 1;
+            if (isRealComparison) {
+                if (probSum < 1) {
+                    let margin = (1 / probSum - 1) * 100;
+                    summaryTitle.textContent = "Arbitrage Opportunity (Profit)";
+                    summaryValue.textContent = `+${margin.toFixed(2)}%`;
+                    summaryValue.className = "summary-value arb";
+                } else {
+                    let edge = (probSum - 1) / probSum * 100;
+                    summaryTitle.textContent = "House Edge";
+                    summaryValue.textContent = `${edge.toFixed(2)}%`;
+                    summaryValue.className = "summary-value edge";
+                }
+            } else {
+                summaryTitle.textContent = "Theoretical Fair Market";
+                summaryValue.textContent = "0.00%";
+                summaryValue.className = "summary-value";
+            }
+        }
+
+        // Handle Bet Amount & Profit/Loss Dollar Math
+        if (!isNaN(target) && target > 0) {
+            let totalSpent = 0;
+            
+            outcomes.forEach((o, i) => {
+                let m = multipliers[i];
+                if (m) {
+                    let wager = target / m;
+                    totalSpent += wager;
+                    o.bet.innerHTML = `Wager needed:<br><strong>$${wager.toFixed(2)}</strong>`;
+                }
+            });
+
+            if (allValid) {
+                let net = target - totalSpent;
+                let netColor = net > 0.01 ? "var(--green)" : (net < -0.01 ? "var(--red)" : "var(--text-main)");
+                let sign = net > 0.01 ? "+" : "";
+
+                summarySubtext.innerHTML = `
+                    Total Spent: $${totalSpent.toFixed(2)} <br>
+                    Net Return: <strong style="color:${netColor}">${sign}$${net.toFixed(2)}</strong>
+                `;
+            }
+        }
+    }
+
+    inputTarget.addEventListener('input', updateUI);
+    
+    // Start app
+    init();
+</script>
+</body>
+</html>
